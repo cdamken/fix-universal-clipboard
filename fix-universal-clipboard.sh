@@ -216,6 +216,8 @@ done
 if [[ $clipboard_had_content -eq 1 ]]; then
   printf '%s' "$saved_clipboard" | pbcopy 2>/dev/null || true
   info "Restored clipboard text (formatting and images were not preserved)"
+  warn "That restore overwrote the shared clipboard. Copy on the other device"
+  warn "again before testing, or run with --no-save."
 fi
 
 # --- what to do next ------------------------------------------------------
@@ -223,12 +225,19 @@ fi
 heading "Now test it"
 cat <<'EOF'
   1. On the iPhone or iPad, copy a short piece of plain text.
-  2. Within two minutes, press Cmd+V on the Mac.
+  2. Copy NOTHING on the Mac in between. There is a single shared clipboard
+     and the most recent copy wins, whichever device it came from. Copying
+     anything locally silently replaces what the phone sent.
+  3. Within two minutes, press Cmd+V on the Mac.
      The clipboard expires on its own, so do not wait longer.
 
   Test by actually pasting. Do not use `pbpaste` to check: it reads the local
   pasteboard only and does not pull in the remote clipboard, so it will look
   empty even when Universal Clipboard is working.
+
+  Copying an image? Paste it somewhere that accepts images, such as Preview
+  via File > New from Clipboard. A destination that only takes text will fall
+  back to whatever text is on the clipboard, which looks exactly like failure.
 
   Still not working? The iPhone side needs attention:
   - Settings > General > AirPlay & Continuity > Handoff: turn it off and on.

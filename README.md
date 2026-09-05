@@ -86,11 +86,20 @@ Findings are advisory. The repair runs regardless, because a stuck daemon usuall
 ## Testing it afterwards
 
 1. On the iPhone or iPad, copy a short piece of plain text.
-2. Within two minutes, press <kbd>Cmd</kbd>+<kbd>V</kbd> on the Mac. The clipboard expires on its own.
+2. Copy **nothing** on the Mac in between.
+3. Within two minutes, press <kbd>Cmd</kbd>+<kbd>V</kbd> on the Mac. The clipboard expires on its own.
 
-**Test by actually pasting.** Do not reach for `pbpaste` to check whether it worked: it reads the local pasteboard only and does not pull in the remote clipboard, so it reports an empty clipboard even while Universal Clipboard is working fine. This is an easy way to misdiagnose the problem as unfixed.
+Three ways a working setup still looks broken. All three are worth ruling out before you conclude anything is wrong:
 
-Prefer plain text for the test. Copying from a browser drags HTML along and muddies the result.
+**A local copy silently wins.** There is one shared clipboard, and the most recent copy replaces it no matter which device it came from. Copy something on the Mac after copying on the phone, even a line of terminal output, and the phone's content is gone. This is easy to do by accident while troubleshooting, and it looks exactly like the feature failing.
+
+**`pbpaste` lies.** It reads the local pasteboard only and never pulls in the remote clipboard, so it reports an empty clipboard even while Universal Clipboard works fine. Test by actually pasting.
+
+**The paste destination matters for images.** Paste an image somewhere that accepts images, such as Preview via *File → New from Clipboard*. A text-only destination falls back to whatever text is on the clipboard, so you get stale text instead of your image and it reads as a failure.
+
+Prefer plain text for the first test. Copying from a browser drags HTML along and muddies the result.
+
+Note that `--no-save` exists partly for this: restoring the local clipboard after the restart also overwrites whatever the other device had sent.
 
 ## Clipboard preservation
 
