@@ -20,18 +20,46 @@ Nothing surfaces an error when one of them wedges, which is why the failure is s
 
 ## Usage
 
+Clone it into a directory you own. Creating one under your home directory always works:
+
 ```bash
+mkdir -p ~/src && cd ~/src
 git clone https://github.com/cdamken/fix-universal-clipboard.git
 cd fix-universal-clipboard
-chmod +x fix-universal-clipboard.sh
 ./fix-universal-clipboard.sh
 ```
+
+> Do not run `git clone` from inside a system directory such as `/usr/local/bin` or `/opt/homebrew/bin`. Git cannot create a folder there without root and fails with `could not create work tree dir 'fix-universal-clipboard': Permission denied`, which then makes the following `cd` and `./fix-universal-clipboard.sh` fail too.
 
 Run the diagnostics without changing anything:
 
 ```bash
 ./fix-universal-clipboard.sh --check
 ```
+
+### Install it as a command
+
+To call it from anywhere instead of `cd`-ing into the repo each time, symlink it into a directory on your `PATH`:
+
+```bash
+mkdir -p ~/bin
+ln -sf ~/src/fix-universal-clipboard/fix-universal-clipboard.sh ~/bin/fix-universal-clipboard
+```
+
+If `~/bin` is not on your `PATH` yet, add it and reload the shell:
+
+```bash
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+```
+
+Then, from any directory:
+
+```bash
+fix-universal-clipboard --check
+fix-universal-clipboard
+```
+
+Because the symlink points at the clone, `git pull` inside the repo updates the command too.
 
 ### Options
 
