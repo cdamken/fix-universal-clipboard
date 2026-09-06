@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
 #
-# fix-universal-clipboard - repair Apple Universal Clipboard on macOS
+# fix-universal-clipboard - diagnose and repair Apple Universal Clipboard
 #
 # When copy/paste between your iPhone/iPad and your Mac silently stops working,
-# it is usually one of three user-level daemons stuck in a bad state on the Mac:
+# there are two distinct causes, and only the first one is fixable by restarting
+# anything.
 #
-#   pboard          the pasteboard (clipboard) server
-#   useractivityd   Handoff, which Universal Clipboard is built on
-#   sharingd        Continuity (AirDrop, Handoff, Universal Clipboard)
+# 1. A stuck daemon. Three user-level daemons carry the feature:
 #
-# Restarting them clears the stuck state. launchd relaunches all three
-# immediately, so there is nothing to turn back on afterwards.
+#      pboard          the pasteboard (clipboard) server
+#      useractivityd   Handoff, which Universal Clipboard is built on
+#      sharingd        Continuity (AirDrop, Handoff, Universal Clipboard)
+#
+#    Restarting them clears it. launchd relaunches all three immediately, so
+#    there is nothing to turn back on afterwards.
+#
+# 2. A stale remote pasteboard blob. The clipboard lives in two files on disk,
+#    not in memory. When the remote one stops advancing, nothing new arrives,
+#    text or image, and no amount of restarting helps. Every other Continuity
+#    feature keeps working, AirDrop included, which disguises it as a network
+#    or pairing problem. Only repeated copying on the other device clears it.
+#    --check reports both blob timestamps so you can tell the two cases apart.
 #
 # No sudo required. Nothing is installed, and no settings are changed.
 #
@@ -51,8 +61,7 @@ usage() {
   cat <<EOF
 fix-universal-clipboard $VERSION
 
-Repairs Apple Universal Clipboard (copy on iPhone, paste on Mac) by restarting
-the three macOS user daemons it depends on.
+Diagnoses and repairs Apple Universal Clipboard (copy on iPhone, paste on Mac).
 
 USAGE
   $(basename "$0") [OPTIONS]
@@ -64,13 +73,17 @@ OPTIONS
   --version    Show the version.
 
 WHAT IT DOES
-  Restarts pboard, useractivityd and sharingd. launchd brings all three back
-  automatically. No sudo, no installs, no settings changed.
+  Checks every Mac-side requirement, reports the two pasteboard blob
+  timestamps, then restarts pboard, useractivityd and sharingd. launchd brings
+  all three back automatically. No sudo, no installs, no settings changed.
 
-WHAT IT CANNOT DO
-  Universal Clipboard needs both devices working. This script only touches the
-  Mac. If it does not help, the iPhone side needs a restart, since iOS has no
-  way to reset the clipboard on its own.
+WHAT IT CANNOT FIX
+  A stale remote blob. If --check flags one, the channel is stuck and no
+  restart clears it. Keep copying on the other device for a minute or two,
+  then re-check that the remote timestamp moved.
+
+  The other device. This script only touches the Mac. iOS has no clipboard
+  reset, so restarting the phone is the only lever on that side.
 EOF
 }
 

@@ -1,6 +1,6 @@
 # fix-universal-clipboard
 
-Repairs Apple **Universal Clipboard** on macOS when copy/paste between your iPhone or iPad and your Mac silently stops working.
+Diagnoses and repairs Apple **Universal Clipboard** on macOS when copy/paste between your iPhone or iPad and your Mac silently stops working.
 
 No sudo. Nothing installed. No settings changed.
 
@@ -8,7 +8,11 @@ No sudo. Nothing installed. No settings changed.
 
 You copy something on your iPhone, press <kbd>Cmd</kbd>+<kbd>V</kbd> on the Mac, and get the *previous* clipboard contents instead. Or nothing at all. Everything looks correctly configured: Handoff is on, both devices share an iCloud account, Bluetooth and Wi-Fi are up. Other Continuity features still work, so the phone is clearly reachable.
 
-The cause is usually one of three user-level daemons on the Mac stuck in a bad state:
+There are two distinct causes, and only the first is fixable by restarting anything. Run `--check` to tell them apart before you start chasing the wrong one.
+
+### Cause 1: a stuck daemon
+
+Three user-level daemons on the Mac carry the feature, and any of them can wedge:
 
 | Daemon | What it does |
 | --- | --- |
@@ -17,6 +21,20 @@ The cause is usually one of three user-level daemons on the Mac stuck in a bad s
 | `sharingd` | Continuity: AirDrop, Handoff, Universal Clipboard |
 
 Nothing surfaces an error when one of them wedges, which is why the failure is so quiet. Restarting them clears the state, and `launchd` brings all three back immediately, so there is nothing to turn back on afterwards.
+
+### Cause 2: a stale remote pasteboard blob
+
+Restarting daemons does **not** fix this one.
+
+The clipboard is not held in memory. `useractivityd` writes it to two files inside its group container: one for what this Mac copied, one for what arrived from another device. Their paths live in `kLocalPasteboardBlobName` and `kRemotePasteboardBlobName`.
+
+When the remote blob stops advancing, the channel is stuck. Nothing new lands, text or image, however many daemons you restart, while every other Continuity feature keeps working normally. AirDrop in particular goes on fine, because it never touches these files, which makes the whole thing look like a network or pairing problem when it is not.
+
+`--check` reports both timestamps and flags a remote blob older than 12 hours. The blob contents are sandboxed and unreadable, but the timestamp is readable, and it is the one measurement here that cannot mislead you.
+
+**To clear it:** keep copying on the other device, several times across a minute or two, unlocked and nearby. `useractivityd` eventually releases the stale blob and writes a fresh one. Then re-run `--check` and confirm the remote timestamp moved.
+
+This is also why `pbpaste` is useless for diagnosing this: it reads the local pasteboard, never the remote blob, so it reports the same stale answer either way.
 
 ## Usage
 
@@ -69,20 +87,6 @@ Because the symlink points at the clone, `git pull` inside the repo updates the 
 | `--no-save` | Do not preserve the current clipboard contents. |
 | `-h`, `--help` | Show usage. |
 | `--version` | Show the version. |
-
-## The stale remote blob
-
-There is a second failure mode, and restarting daemons does **not** fix it.
-
-The clipboard is not held in memory. `useractivityd` writes it to two files inside its group container: one for what this Mac copied, one for what arrived from another device. Their paths live in `kLocalPasteboardBlobName` and `kRemotePasteboardBlobName`.
-
-When the remote blob stops advancing, the channel is stuck. Nothing new lands, text or image, however many daemons you restart, while every other Continuity feature keeps working normally. AirDrop in particular goes on fine, because it never touches these files, which makes the whole thing look like a network or pairing problem when it is not.
-
-`--check` reports both timestamps and flags a remote blob older than 12 hours. The blob contents are sandboxed and unreadable, but the timestamp is readable, and it is the one measurement here that cannot mislead you.
-
-**To clear it:** keep copying on the other device, several times across a minute or two, unlocked and nearby. `useractivityd` eventually releases the stale blob and writes a fresh one. Then re-run `--check` and confirm the remote timestamp moved.
-
-This is also why `pbpaste` is useless for diagnosing this: it reads the local pasteboard, never the remote blob, so it reports the same stale answer either way.
 
 ## What it checks
 
