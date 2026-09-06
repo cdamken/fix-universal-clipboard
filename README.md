@@ -70,6 +70,20 @@ Because the symlink points at the clone, `git pull` inside the repo updates the 
 | `-h`, `--help` | Show usage. |
 | `--version` | Show the version. |
 
+## The stale remote blob
+
+There is a second failure mode, and restarting daemons does **not** fix it.
+
+The clipboard is not held in memory. `useractivityd` writes it to two files inside its group container: one for what this Mac copied, one for what arrived from another device. Their paths live in `kLocalPasteboardBlobName` and `kRemotePasteboardBlobName`.
+
+When the remote blob stops advancing, the channel is stuck. Nothing new lands, text or image, however many daemons you restart, while every other Continuity feature keeps working normally. AirDrop in particular goes on fine, because it never touches these files, which makes the whole thing look like a network or pairing problem when it is not.
+
+`--check` reports both timestamps and flags a remote blob older than 12 hours. The blob contents are sandboxed and unreadable, but the timestamp is readable, and it is the one measurement here that cannot mislead you.
+
+**To clear it:** keep copying on the other device, several times across a minute or two, unlocked and nearby. `useractivityd` eventually releases the stale blob and writes a fresh one. Then re-run `--check` and confirm the remote timestamp moved.
+
+This is also why `pbpaste` is useless for diagnosing this: it reads the local pasteboard, never the remote blob, so it reports the same stale answer either way.
+
 ## What it checks
 
 Before restarting anything, the script verifies every Mac-side requirement of Universal Clipboard and tells you which one is missing:

@@ -25,7 +25,7 @@
 
 set -euo pipefail
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 DAEMONS=(pboard useractivityd sharingd)
 HANDOFF_DOMAIN="com.apple.coreservices.useractivityd"
 
@@ -159,6 +159,48 @@ for d in "${DAEMONS[@]}"; do
   fi
 done
 
+# The clipboard is not held in memory. useractivityd writes it to two blobs on
+# disk, one for what this Mac copied and one for what arrived from elsewhere.
+# A remote blob that stops advancing is the clearest sign the channel is stuck:
+# nothing new lands, text or image, no matter how many daemons get restarted.
+heading "Shared pasteboard blobs"
+
+remote_blob=$(defaults read "$HANDOFF_DOMAIN" kRemotePasteboardBlobName 2>/dev/null || true)
+local_blob=$(defaults read "$HANDOFF_DOMAIN" kLocalPasteboardBlobName 2>/dev/null || true)
+
+describe_blob() {
+  local label="$1" path="$2"
+  if [[ -z "$path" ]]; then
+    info "$label blob: not registered yet (normal on a fresh account)"
+    return
+  fi
+  if [[ ! -e "$path" ]]; then
+    info "$label blob: registered but absent, it is rewritten on the next copy"
+    return
+  fi
+
+  # The blob contents are sandboxed and unreadable, but its timestamp is not,
+  # and the timestamp is the only measurement here that cannot mislead.
+  local mtime age_min size
+  mtime=$(stat -f %m "$path" 2>/dev/null || echo 0)
+  size=$(stat -f %z "$path" 2>/dev/null || echo 0)
+  age_min=$(( ($(date +%s) - mtime) / 60 ))
+
+  local when
+  when=$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$path" 2>/dev/null)
+
+  if [[ "$label" == "Remote" && "$age_min" -gt 720 ]]; then
+    bad "$label blob last changed $when (${age_min} min ago, $size bytes)"
+    warn "Nothing has arrived from another device in over 12 hours."
+    warn "If you have copied on the other device since then, this channel is stuck."
+  else
+    ok "$label blob last changed $when ($size bytes)"
+  fi
+}
+
+describe_blob "Local " "$local_blob"
+describe_blob "Remote" "$remote_blob"
+
 if [[ $CHECK_ONLY -eq 1 ]]; then
   heading "Done"
   echo "  Diagnostics only, nothing was changed."
@@ -238,6 +280,12 @@ cat <<'EOF'
   Copying an image? Paste it somewhere that accepts images, such as Preview
   via File > New from Clipboard. A destination that only takes text will fall
   back to whatever text is on the clipboard, which looks exactly like failure.
+
+  If the check above flagged the remote blob as stale, restarting daemons will
+  not clear it. What does: keep copying on the other device, a few times over
+  a minute or two, with the device unlocked and nearby. useractivityd releases
+  the stale blob and writes a fresh one. Re-run with --check to confirm the
+  remote blob timestamp has finally moved.
 
   Still not working? The iPhone side needs attention:
   - Settings > General > AirPlay & Continuity > Handoff: turn it off and on.
