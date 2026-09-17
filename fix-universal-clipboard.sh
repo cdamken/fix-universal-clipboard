@@ -35,7 +35,7 @@
 
 set -euo pipefail
 
-VERSION="1.1.0"
+VERSION="1.2.0"
 DAEMONS=(pboard useractivityd sharingd)
 HANDOFF_DOMAIN="com.apple.coreservices.useractivityd"
 
@@ -152,14 +152,35 @@ else
   warn "awdl0 is not running. It usually comes back with the daemons."
 fi
 
-# Both devices must be signed in to the same iCloud account.
-icloud_account=$(defaults read MobileMeAccounts Accounts 2>/dev/null \
+# Both devices must be signed in to the same Apple Account. Note this is the
+# account itself, not iCloud Drive: Universal Clipboard works fine with iCloud
+# Drive switched off, and with every other iCloud service off too.
+#
+# Where that account is visible has moved. MobileMeAccounts carried it through
+# macOS 26 and comes back empty on macOS 27, so fall back to the per-account
+# directory, whose name is the account's numeric identifier.
+apple_account=$(defaults read MobileMeAccounts Accounts 2>/dev/null \
   | awk -F'"' '/AccountID/{print $2; exit}' || true)
-if [[ -n "$icloud_account" ]]; then
-  ok "Signed in to iCloud as $icloud_account"
+
+account_dir=""
+if [[ -z "$apple_account" ]]; then
+  account_dir=$(find "$HOME/Library/Application Support/iCloud/Accounts" \
+    -maxdepth 1 -mindepth 1 -name '[0-9]*' -print 2>/dev/null | head -1)
+fi
+
+if [[ -n "$apple_account" ]]; then
+  ok "Signed in to an Apple Account ($apple_account)"
+  info "The other device must use this same account"
+elif [[ -n "$account_dir" ]]; then
+  ok "Signed in to an Apple Account (id ${account_dir##*/})"
   info "The other device must use this same account"
 else
-  bad "No iCloud account found. Both devices must share one."
+  # Not being able to read the account is not the same as not having one, and
+  # reporting it as a failure sends people chasing a problem they do not have.
+  warn "Could not determine the Apple Account from this shell."
+  info "That does not mean one is missing: where macOS exposes it varies by"
+  info "release. Confirm in System Settings that both devices use the same"
+  info "Apple Account. iCloud Drive is not required."
 fi
 
 heading "Daemon state"
@@ -305,7 +326,7 @@ cat <<'EOF'
   - Keep the device unlocked and nearby while you copy.
   - Restart the iPhone. iOS has no clipboard reset, so a restart is the only
     way to clear its side.
-  - Confirm both devices use the same iCloud account.
+  - Confirm both devices use the same Apple Account (iCloud Drive not needed).
   - Check Settings > General > VPN & Device Management. A work profile on the
     phone can block the clipboard between devices even on a shared account.
 EOF

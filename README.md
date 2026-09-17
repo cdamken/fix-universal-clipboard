@@ -6,7 +6,7 @@ No sudo. Nothing installed. No settings changed.
 
 ## The problem
 
-You copy something on your iPhone, press <kbd>Cmd</kbd>+<kbd>V</kbd> on the Mac, and get the *previous* clipboard contents instead. Or nothing at all. Everything looks correctly configured: Handoff is on, both devices share an iCloud account, Bluetooth and Wi-Fi are up. Other Continuity features still work, so the phone is clearly reachable.
+You copy something on your iPhone, press <kbd>Cmd</kbd>+<kbd>V</kbd> on the Mac, and get the *previous* clipboard contents instead. Or nothing at all. Everything looks correctly configured: Handoff is on, both devices share an Apple Account, Bluetooth and Wi-Fi are up. Other Continuity features still work, so the phone is clearly reachable.
 
 There are two distinct causes, and only the first is fixable by restarting anything. Run `--check` to tell them apart before you start chasing the wrong one.
 
@@ -96,7 +96,7 @@ Before restarting anything, the script verifies every Mac-side requirement of Un
 - Bluetooth on, used to discover the nearby device
 - Wi-Fi radio on; the transfer itself runs over AWDL peer to peer, so the two devices do not have to share a network
 - `awdl0` up, the peer-to-peer link that carries the payload
-- An iCloud account signed in, which both devices must share
+- An Apple Account signed in, which both devices must share. This means the account itself, **not** iCloud Drive: Universal Clipboard works with iCloud Drive off, and with every other iCloud service off. Where macOS exposes the account moved in macOS 27, so the check tries more than one source and reports "could not determine" rather than failing when it cannot read it
 - Whether each of the three daemons is running
 
 Findings are advisory. The repair runs regardless, because a stuck daemon usually looks perfectly healthy.
@@ -130,8 +130,8 @@ Universal Clipboard needs both devices healthy, and this script only touches the
 - **Settings → General → AirPlay & Continuity → Handoff**: turn it off and back on.
 - Keep the device unlocked and nearby while you copy. It only advertises the clipboard while awake.
 - **Restart the iPhone.** iOS exposes no clipboard reset, so a restart is the only way to clear its side.
-- Confirm both devices are signed in to the same iCloud account.
-- **Settings → General → VPN & Device Management**: a work or MDM profile on the phone can block the clipboard between devices even when the iCloud account is shared.
+- Confirm both devices are signed in to the same Apple Account. iCloud Drive does not need to be on.
+- **Settings → General → VPN & Device Management**: a work or MDM profile on the phone can block the clipboard between devices even when the Apple Account is shared.
 
 ## Which step actually fixes it
 
