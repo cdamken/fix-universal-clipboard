@@ -35,7 +35,7 @@
 
 set -euo pipefail
 
-VERSION="1.2.0"
+VERSION="1.3.0"
 DAEMONS=(pboard useractivityd sharingd)
 HANDOFF_DOMAIN="com.apple.coreservices.useractivityd"
 
@@ -316,10 +316,24 @@ cat <<'EOF'
   back to whatever text is on the clipboard, which looks exactly like failure.
 
   If the check above flagged the remote blob as stale, restarting daemons will
-  not clear it. What does: keep copying on the other device, a few times over
-  a minute or two, with the device unlocked and nearby. useractivityd releases
-  the stale blob and writes a fresh one. Re-run with --check to confirm the
-  remote blob timestamp has finally moved.
+  not clear it. The stale contents survive: useractivityd re-registers the blob
+  under a new name and carries the old bytes and timestamp across, so --check
+  keeps reporting the same date however many times you run this.
+
+  Try this first, and it is often enough: keep copying on the other device,
+  several times over a minute or two, unlocked and nearby. useractivityd
+  eventually releases the blob and writes a fresh one. Re-run --check and see
+  whether the remote timestamp moved.
+
+  If it will not budge, delete the blob directly:
+
+    rm -f "$(defaults read com.apple.coreservices.useractivityd \
+      kRemotePasteboardBlobName)" && killall useractivityd
+
+  That path sits in a protected group container, so it fails with "Operation
+  not permitted" unless the terminal running it holds Full Disk Access. Grant
+  it in System Settings > Privacy & Security > Full Disk Access, quit the
+  terminal completely, reopen it, and run the command again.
 
   Still not working? The iPhone side needs attention:
   - Settings > General > AirPlay & Continuity > Handoff: turn it off and on.

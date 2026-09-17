@@ -32,7 +32,17 @@ When the remote blob stops advancing, the channel is stuck. Nothing new lands, t
 
 `--check` reports both timestamps and flags a remote blob older than 12 hours. The blob contents are sandboxed and unreadable, but the timestamp is readable, and it is the one measurement here that cannot mislead you.
 
-**To clear it:** keep copying on the other device, several times across a minute or two, unlocked and nearby. `useractivityd` eventually releases the stale blob and writes a fresh one. Then re-run `--check` and confirm the remote timestamp moved.
+**Restarting daemons does not clear it, and it is worth understanding why.** `useractivityd` re-registers the blob under a new filename and carries the old bytes and timestamp across, so `--check` reports the same stale date no matter how often you run the repair. The staleness lives in the data, not in the process.
+
+**To clear it, first try:** keep copying on the other device, several times across a minute or two, unlocked and nearby. `useractivityd` eventually releases the stale blob and writes a fresh one. Re-run `--check` and confirm the remote timestamp moved.
+
+**If it will not budge,** delete the blob directly:
+
+```bash
+rm -f "$(defaults read com.apple.coreservices.useractivityd kRemotePasteboardBlobName)" && killall useractivityd
+```
+
+That path lives in a protected group container, so it fails with `Operation not permitted` unless the terminal running it holds **Full Disk Access**. Grant it in *System Settings → Privacy & Security → Full Disk Access*, quit the terminal completely, reopen it, and run the command again.
 
 This is also why `pbpaste` is useless for diagnosing this: it reads the local pasteboard, never the remote blob, so it reports the same stale answer either way.
 
